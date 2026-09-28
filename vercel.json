@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "name": "tracepulse-ai",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/web/$1" }
+  ]
+}

@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TracePulse AI — Real-Time Distributed Telemetry & Latency SLA Profiler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: #101726;
+      --bg-card-hover: #162035;
+      --border-color: #1e293b;
+      --border-focus: #3b82f6;
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.25);
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Top Navigation Bar */
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(16, 23, 38, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: #fff;
+      font-size: 1.1rem;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-tag {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      color: var(--accent-cyan);
+      border-radius: 9999px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 2rem;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 1.5rem;
+      flex: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sidebar Controls */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: all 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .btn {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .btn:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    .btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+
+    .control-group {
+      margin-bottom: 1rem;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .slider {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #1e293b;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--primary-glow);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .toggle-label {
+      font-size: 0.8rem;
+      color: var(--text-main);
+    }
+
+    .toggle-desc {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    /* Switch Component */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider-switch {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #1e293b;
+      transition: .3s;
+      border-radius: 20px;
+    }
+
+    .slider-switch:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider-switch {
+      background-color: var(--accent-rose);
+    }
+
+    input:checked + .slider-switch:before {
+      transform: translateX(16px);
+    }
+
+    /* Main Dashboard View */
+    .main-view {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Metric Grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .metric-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent-cyan));
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 0.25rem;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .metric-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Waterfall Trace Visualizer */
+    .trace-visualizer {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .waterfall-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .legend {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .legend-box {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .waterfall-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      position: relative;
+    }
+
+    .span-row {
+      display: grid;
+      grid-template-columns: 220px 1fr 90px;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(16, 23, 38, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .span-row:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .span-row.critical {
+      border-left: 3px solid var(--accent-amber);
+    }
+
+    .span-row.error-node {
+      border-left: 3px solid var(--accent-rose);
+      background: rgba(244, 63, 94, 0.08);
+    }
+
+    .span-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .span-service {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .span-name {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .timeline-bar-wrapper {
+      position: relative;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 4px;
+      width: 100%;
+    }
+
+    .timeline-bar {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      border-radius: 3px;
+      background: var(--primary);
+      transition: all 0.3s ease;
+    }
+
+    .timeline-bar.critical-bar {
+      background: linear-gradient(90deg, #f59e0b, #ef4444);
+    }
+
+    .timeline-bar.error-bar {
+      background: var(--accent-rose);
+    }
+
+    .span-timing {
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Root Cause Analysis Banner */
+    .rca-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(16, 23, 38, 0.95));
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .rca-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      color: var(--accent-amber);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .remediation-list {
+      list-style-type: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .remediation-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-main);
+    }
+
+    .remediation-icon {
+      color: var(--accent-emerald);
+      font-size: 0.9rem;
+      margin-top: 0.1rem;
+    }
+
+    /* Custom File Dropzone */
+    .dropzone {
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s ease;
+    }
+
+    .dropzone:hover {
+      border-color: var(--primary);
+    }
+
+    .dropzone-text {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon">TP</div>
+      <div>
+        <div class="brand-title">TracePulse AI</div>
+        <span class="brand-tag">v2.4 Core Engine</span>
+      </div>
+    </div>
+    <div class="nav-status">
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        <span>EDGE TELEMETRY LIVE</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Grid Content -->
+  <div class="container">
+    
+    <!-- Left Sidebar: Controls & Workload Profiles -->
+    <aside class="sidebar">
+      
+      <!-- Preset Topologies -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🌐 Workload Profiles</span>
+        </div>
+        <div class="btn-group">
+          <button class="btn active" id="btn-ecommerce" onclick="loadTopology('ecommerce')">🛒 E-Commerce</button>
+          <button class="btn" id="btn-streaming" onclick="loadTopology('streaming')">🎥 Media Pipeline</button>
+        </div>
+        <div class="btn-group">
+          <button class="btn" id="btn-fintech" onclick="loadTopology('fintech')">💳 Fraud Scoring</button>
+          <button class="btn" id="btn-rag" onclick="loadTopology('rag')">🤖 RAG Vector</button>
+        </div>
+      </div>
+
+      <!-- Latency SLA Budget Slider -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🎯 SLA Budget Profiler</span>
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Target SLA Budget</span>
+            <span id="sla-val">200 ms</span>
+          </div>
+          <input type="range" class="slider" id="sla-slider" min="50" max="500" value="200" oninput="updateSLA(this.value)">
+        </div>
+        <div class="control-group">
+          <div class="control-label">
+            <span>Concurrent Traffic Load</span>
+            <span id="load-val">1,200 req/s</span>
+          </div>
+          <input type="range" class="slider" id="load-slider" min="100" max="5000" step="100" value="1200" oninput="updateLoad(this.value)">
+        </div>
+      </div>
+
+      <!-- Live Fault Injection Sandbox -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">⚡ Fault Injection Matrix</span>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">DB Connection Pool Stall</div>
+            <div class="toggle-desc">+120ms to Postgres query</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="fault-db" onchange="applyFaults()">
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Cache Miss Storm</div>
+            <div class="toggle-desc">+45ms & cold fallbacks</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="fault-cache" onchange="applyFaults()">
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Upstream Network Jitter</div>
+            <div class="toggle-desc">+75ms packet loss variance</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="fault-network" onchange="applyFaults()">
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Payment Gateway Trip</div>
+            <div class="toggle-desc">Trigger 504 Gateway Error</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="fault-error" onchange="applyFaults()">
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Custom Trace JSON Dropzone -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📁 Custom Telemetry JSON</span>
+        </div>
+        <div class="dropzone" onclick="document.getElementById('file-upload').click()">
+          <div class="dropzone-text">Click or Drop OpenTelemetry / Jaeger JSON</div>
+          <input type="file" id="file-upload" style="display:none" accept=".json" onchange="handleFileUpload(event)">
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Right Main View: Telemetry Metrics & Waterfall DAG -->
+    <main class="main-view">
+      
+      <!-- Top Metrics Dashboard -->
+      <div class="metric-grid">
+        <div class="metric-card">
+          <div class="metric-label">Total Wall Duration</div>
+          <div class="metric-value" id="m-wall">182.4 ms</div>
+          <div class="metric-sub" id="m-concurrency">Concurrency: 2.4x</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">p95 Latency</div>
+          <div class="metric-value" id="m-p95">192.1 ms</div>
+          <div class="metric-sub" id="m-headroom">Headroom: +7.9 ms</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">SLA Breach Risk</div>
+          <div class="metric-value" id="m-breach" style="color: var(--accent-emerald);">0.0%</div>
+          <div class="metric-sub" id="m-status">Status: HEALTHY</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Tail Amplification</div>
+          <div class="metric-value" id="m-tail">1.8x</div>
+          <div class="metric-sub">p99 / p50 Ratio</div>
+        </div>
+      </div>
+
+      <!-- Distributed Span Waterfall DAG -->
+      <div class="trace-visualizer">
+        <div class="waterfall-header">
+          <span class="card-title" id="trace-title">📊 Distributed Execution DAG: tr-order-checkout-9921</span>
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-box" style="background: var(--primary);"></div>
+              <span>Normal Span</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-box" style="background: var(--accent-amber);"></div>
+              <span>Critical Path</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-box" style="background: var(--accent-rose);"></div>
+              <span>Fault / Error</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="waterfall-container" id="waterfall-rows">
+          <!-- Dynamically populated rows -->
+        </div>
+      </div>
+
+      <!-- Root Cause Analysis & Automated Remediation Card -->
+      <div class="rca-card" id="rca-container">
+        <div class="rca-title">
+          <span>🚨 Root-Cause Bottleneck Isolation</span>
+          <span id="rca-culprit-tag" style="font-size: 0.8rem; background: rgba(245, 158, 11, 0.2); padding: 0.2rem 0.6rem; border-radius: 4px;">postgres-cluster (78.4ms)</span>
+        </div>
+        <ul class="remediation-list" id="rca-remediations">
+          <li class="remediation-item">
+            <span class="remediation-icon">✓</span>
+            <span>Scale connection pool limits or attach read-replica for <code>postgres-cluster</code> (absorbs 43% of critical path self-time).</span>
+          </li>
+          <li class="remediation-item">
+            <span class="remediation-icon">✓</span>
+            <span>Enable query-level Redis caching on <code>sql_insert_ledger</code> to reduce lock contention.</span>
+          </li>
+        </ul>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    TracePulse AI &copy; 2026 &bull; Real-Time Distributed Telemetry Engine &bull; Zero-Overhead SLA Profiler
+  </footer>
+
+  <!-- Interactive Engine JS -->
+  <script>
+    const topologies = {
+      ecommerce: {
+        trace_id: "tr-order-checkout-9921",
+        spans: [
+          { span_id: "s1", name: "POST /api/v2/orders/checkout", service: "api-gateway", start_ms: 0.0, duration_ms: 182.4, parent_id: null, error: false },
+          { span_id: "s2", name: "verify_jwt_token", service: "auth-service", start_ms: 4.2, duration_ms: 18.5, parent_id: "s1", error: false },
+          { span_id: "s3", name: "fetch_cart_items", service: "cart-service", start_ms: 24.1, duration_ms: 32.0, parent_id: "s1", error: false },
+          { span_id: "s4", name: "redis_mget_session", service: "redis-cache", start_ms: 26.0, duration_ms: 4.8, parent_id: "s3", error: false },
+          { span_id: "s5", name: "process_stripe_payment", service: "payment-service", start_ms: 58.0, duration_ms: 114.2, parent_id: "s1", error: false },
+          { span_id: "s6", name: "sql_insert_ledger", service: "postgres-cluster", start_ms: 82.5, duration_ms: 78.4, parent_id: "s5", error: false },
+          { span_id: "s7", name: "publish_order_event", service: "kafka-broker", start_ms: 174.0, duration_ms: 6.8, parent_id: "s1", error: false }
+        ]
+      },
+      streaming: {
+        trace_id: "tr-transcode-media-8841",
+        spans: [
+          { span_id: "s1", name: "POST /video/transcode", service: "edge-ingress", start_ms: 0.0, duration_ms: 240.0, parent_id: null, error: false },
+          { span_id: "s2", name: "fetch_s3_chunk", service: "storage-proxy", start_ms: 10.0, duration_ms: 65.0, parent_id: "s1", error: false },
+          { span_id: "s3", name: "av1_codec_transcode", service: "gpu-worker-04", start_ms: 78.0, duration_ms: 145.0, parent_id: "s1", error: false },
+          { span_id: "s4", name: "extract_keyframes", service: "gpu-worker-04", start_ms: 82.0, duration_ms: 38.0, parent_id: "s3", error: false },
+          { span_id: "s5", name: "manifest_generate", service: "hls-packager", start_ms: 225.0, duration_ms: 12.0, parent_id: "s1", error: false }
+        ]
+      },
+      fintech: {
+        trace_id: "tr-fraud-score-3310",
+        spans: [
+          { span_id: "s1", name: "POST /fraud/evaluate", service: "risk-gateway", start_ms: 0.0, duration_ms: 110.0, parent_id: null, error: false },
+          { span_id: "s2", name: "fetch_identity_graph", service: "neo4j-graph", start_ms: 5.0, duration_ms: 45.0, parent_id: "s1", error: false },
+          { span_id: "s3", name: "evaluate_lightgbm", service: "inference-node", start_ms: 52.0, duration_ms: 42.0, parent_id: "s1", error: false },
+          { span_id: "s4", name: "feature_lookup", service: "feast-store", start_ms: 54.0, duration_ms: 12.0, parent_id: "s3", error: false },
+          { span_id: "s5", name: "audit_log_write", service: "ledger-db", start_ms: 96.0, duration_ms: 11.0, parent_id: "s1", error: false }
+        ]
+      },
+      rag: {
+        trace_id: "tr-rag-query-1049",
+        spans: [
+          { span_id: "s1", name: "POST /agent/generate", service: "agent-router", start_ms: 0.0, duration_ms: 310.0, parent_id: null, error: false },
+          { span_id: "s2", name: "embed_query_minilm", service: "onnx-embedder", start_ms: 8.0, duration_ms: 22.0, parent_id: "s1", error: false },
+          { span_id: "s3", name: "ann_search_qdrant", service: "vector-store", start_ms: 32.0, duration_ms: 85.0, parent_id: "s1", error: false },
+          { span_id: "s4", name: "cross_encoder_rerank", service: "reranker-svc", start_ms: 120.0, duration_ms: 70.0, parent_id: "s1", error: false },
+          { span_id: "s5", name: "stream_llm_tokens", service: "llm-inference", start_ms: 195.0, duration_ms: 112.0, parent_id: "s1", error: false }
+        ]
+      }
+    };
+
+    let currentTopology = 'ecommerce';
+    let currentData = JSON.parse(JSON.stringify(topologies.ecommerce));
+    let targetSLA = 200.0;
+    let currentLoad = 1200;
+
+    function loadTopology(key) {
+      currentTopology = key;
+      currentData = JSON.parse(JSON.stringify(topologies[key]));
+      document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('btn-' + key);
+      if (activeBtn) activeBtn.classList.add('active');
+      
+      // Reset fault checkboxes
+      document.querySelectorAll('.switch input').forEach(s => s.checked = false);
+      renderDashboard();
+    }
+
+    function updateSLA(val) {
+      targetSLA = parseFloat(val);
+      document.getElementById('sla-val').textContent = targetSLA.toFixed(0) + ' ms';
+      renderDashboard();
+    }
+
+    function updateLoad(val) {
+      currentLoad = parseInt(val);
+      document.getElementById('load-val').textContent = currentLoad.toLocaleString() + ' req/s';
+      renderDashboard();
+    }
+
+    function applyFaults() {
+      // Reload clean base
+      currentData = JSON.parse(JSON.stringify(topologies[currentTopology]));
+
+      const dbStall = document.getElementById('fault-db').checked;
+      const cacheStorm = document.getElementById('fault-cache').checked;
+      const netJitter = document.getElementById('fault-network').checked;
+      const gatewayError = document.getElementById('fault-error').checked;
+
+      currentData.spans.forEach(span => {
+        if (dbStall && (span.service.includes('db') || span.service.includes('postgres') || span.service.includes('sql') || span.service.includes('storage') || span.service.includes('vector'))) {
+          span.duration_ms += 120;
+        }
+        if (cacheStorm && (span.service.includes('cache') || span.service.includes('cart') || span.service.includes('redis'))) {
+          span.duration_ms += 45;
+        }
+        if (netJitter && (span.service.includes('gateway') || span.service.includes('ingress') || span.service.includes('router'))) {
+          span.duration_ms += 75;
+        }
+        if (gatewayError && (span.service.includes('payment') || span.service.includes('gpu') || span.service.includes('inference'))) {
+          span.error = true;
+          span.duration_ms += 150;
+        }
+      });
+
+      renderDashboard();
+    }
+
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const json = JSON.parse(evt.target.result);
+          if (json.spans && Array.isArray(json.spans)) {
+            currentData = json;
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+            renderDashboard();
+          } else {
+            alert("Invalid JSON format: missing 'spans' array.");
+          }
+        } catch (err) {
+          alert("Error parsing JSON: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function renderDashboard() {
+      const spans = currentData.spans;
+      if (!spans || spans.length === 0) return;
+
+      document.getElementById('trace-title').textContent = `📊 Distributed Execution DAG: ${currentData.trace_id || 'tr-custom-telemetry'}`;
+
+      const earliest = Math.min(...spans.map(s => s.start_ms));
+      const latest = Math.max(...spans.map(s => s.start_ms + s.duration_ms));
+      const totalWall = Math.max(1, latest - earliest);
+      const sumDurations = spans.reduce((acc, s) => acc + s.duration_ms, 0);
+      const concurrency = (sumDurations / totalWall).toFixed(1);
+
+      // Identify critical path & bottleneck
+      const maxDurationSpan = [...spans].sort((a, b) => b.duration_ms - a.duration_ms)[0];
+      const hasErrors = spans.some(s => s.error);
+
+      // Latency percentile simulation
+      const baseLat = totalWall;
+      const p50 = baseLat * 0.95;
+      const p90 = baseLat * 1.15;
+      const p95 = baseLat * 1.25;
+      const p99 = baseLat * 1.60;
+      const headroom = targetSLA - p95;
+      const breachRate = (p95 > targetSLA) ? (((p95 - targetSLA) / p95) * 100).toFixed(1) : "0.0";
+      const tailAmp = (p99 / p50).toFixed(1);
+
+      // Update Top Metrics
+      document.getElementById('m-wall').textContent = totalWall.toFixed(1) + ' ms';
+      document.getElementById('m-concurrency').textContent = `Concurrency: ${concurrency}x`;
+      document.getElementById('m-p95').textContent = p95.toFixed(1) + ' ms';
+      
+      const headroomEl = document.getElementById('m-headroom');
+      headroomEl.textContent = `Headroom: ${headroom >= 0 ? '+' : ''}${headroom.toFixed(1)} ms`;
+      headroomEl.style.color = headroom >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+
+      const breachEl = document.getElementById('m-breach');
+      const statusEl = document.getElementById('m-status');
+      breachEl.textContent = breachRate + '%';
+      if (parseFloat(breachRate) > 5.0 || hasErrors) {
+        breachEl.style.color = 'var(--accent-rose)';
+        statusEl.textContent = hasErrors ? 'Status: FAULT DETECTED' : 'Status: CRITICAL BREACH';
+        statusEl.style.color = 'var(--accent-rose)';
+      } else if (parseFloat(breachRate) > 0.0 || headroom < 20) {
+        breachEl.style.color = 'var(--accent-amber)';
+        statusEl.textContent = 'Status: AT RISK';
+        statusEl.style.color = 'var(--accent-amber)';
+      } else {
+        breachEl.style.color = 'var(--accent-emerald)';
+        statusEl.textContent = 'Status: HEALTHY';
+        statusEl.style.color = 'var(--accent-emerald)';
+      }
+
+      document.getElementById('m-tail').textContent = `${tailAmp}x`;
+
+      // Render Waterfall Rows
+      const container = document.getElementById('waterfall-rows');
+      container.innerHTML = '';
+
+      spans.forEach(span => {
+        const row = document.createElement('div');
+        const isCritical = (span.span_id === maxDurationSpan.span_id || span.duration_ms > totalWall * 0.4);
+        const isError = span.error;
+
+        row.className = `span-row ${isError ? 'error-node' : (isCritical ? 'critical' : '')}`;
+
+        const leftPct = ((span.start_ms - earliest) / totalWall) * 100;
+        const widthPct = Math.max(1.5, (span.duration_ms / totalWall) * 100);
+
+        row.innerHTML = `
+          <div class="span-info">
+            <div class="span-service">
+              <span>${span.service}</span>
+              ${isError ? '<span style="color:var(--accent-rose);font-size:0.7rem;">[504 ERR]</span>' : ''}
+              ${isCritical && !isError ? '<span style="color:var(--accent-amber);font-size:0.7rem;">[CRIT]</span>' : ''}
+            </div>
+            <div class="span-name">${span.name}</div>
+          </div>
+          <div class="timeline-bar-wrapper">
+            <div class="timeline-bar ${isError ? 'error-bar' : (isCritical ? 'critical-bar' : '')}" style="left: ${leftPct}%; width: ${widthPct}%;"></div>
+          </div>
+          <div class="span-timing">${span.duration_ms.toFixed(1)} ms</div>
+        `;
+        container.appendChild(row);
+      });
+
+      // Update Root Cause Remediation Card
+      const culpritTag = document.getElementById('rca-culprit-tag');
+      const remList = document.getElementById('rca-remediations');
+      culpritTag.textContent = `${maxDurationSpan.service} (${maxDurationSpan.duration_ms.toFixed(1)}ms)`;
+
+      remList.innerHTML = '';
+      if (hasErrors) {
+        remList.innerHTML += `
+          <li class="remediation-item">
+            <span class="remediation-icon" style="color:var(--accent-rose);">⚠️</span>
+            <span>Circuit breaker tripped on <strong>${maxDurationSpan.service}</strong>. Apply exponential backoff and activate fallback response cache.</span>
+          </li>
+        `;
+      }
+      remList.innerHTML += `
+        <li class="remediation-item">
+          <span class="remediation-icon">✓</span>
+          <span>Deploy localized edge cache or read-replica scaling on <strong>${maxDurationSpan.service}</strong> (consumes ${((maxDurationSpan.duration_ms / totalWall) * 100).toFixed(0)}% of trace duration).</span>
+        </li>
+        <li class="remediation-item">
+          <span class="remediation-icon">✓</span>
+          <span>Convert synchronous RPC <code>${maxDurationSpan.name}</code> into asynchronous queue decoupling where viable.</span>
+        </li>
+      `;
+    }
+
+    // Initial render
+    window.addEventListener('DOMContentLoaded', () => {
+      renderDashboard();
+    });
+  </script>
+</body>
+</html>
